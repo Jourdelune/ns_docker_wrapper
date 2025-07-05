@@ -1,0 +1,23 @@
+[tool.uv]
+seed = 2024-07-05T19:47:17.445811Z
+requires-python = ">=3.10"
+
+[project]
+name = "ns_docker_wrapper"
+version = "0.1.0"
+description = "A Python wrapper for the Nerfstudio Docker image, inspired by ffmpeg-python."
+authors = [
+    { name = "Gemini", email = "gemini@google.com" },
+]
+dependencies = [
+    "docker",
+]
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+
+[project.urls]
+Homepage = "https://github.com/jourdelune/ns_docker_wrapper"
+
+[tool.pdm]
+distribution = false
