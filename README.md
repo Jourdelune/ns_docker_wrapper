@@ -1,6 +1,6 @@
 # ns-docker-wrapper
 
-**`ns-docker-wrapper`** is a Python library that simplifies using [Nerfstudio](https://docs.nerfstudio.org) through Docker.
+**`ns-docker-wrapper`** is a Python library that simplifies using [Nerfstudio](https://docs.nerf.studio/nerfology/methods/index.html) through Docker.
 It provides a clean, fluent API to run commands inside a Docker container, handling tasks like file copying, volume management, and command construction.
 
 
