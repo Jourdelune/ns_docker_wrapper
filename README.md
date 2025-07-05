@@ -4,7 +4,7 @@
 
 ## Installation
 
-(Assuming standard Python package installation, e.g., `pip install .` or `pip install ns-docker-wrapper`)
+(Assuming standard Python package installation, e.g., `pip install .` or `pip install git+https://github.com/Jourdelune/ns_docker_wrapper.git`)
 
 ## Getting Started
 
