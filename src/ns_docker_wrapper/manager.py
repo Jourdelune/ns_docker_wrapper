@@ -19,7 +19,7 @@ class DockerManager:
         self,
         output_base_path: str,
         image_name="ghcr.io/nerfstudio-project/nerfstudio:latest",
-        shm_size="12gb",
+        ipc="host",
     ):
         os.makedirs(output_base_path, exist_ok=True)
 
@@ -30,7 +30,7 @@ class DockerManager:
         self.image_name = image_name
         self.container = None
         self.output_base_path = os.path.abspath(output_base_path)
-        self.shm_size = shm_size
+        self.ipc = ipc
         self._initialized = True
 
         # Temporary directory for Docker cache (mounted to /home/user/.cache)
@@ -79,12 +79,15 @@ class DockerManager:
                 device_requests=device_requests,
                 volumes=volumes,
                 ports={"7007/tcp": 7007},
-                shm_size=self.shm_size,
+                ipc_mode=self.ipc,
                 remove=True,
                 user=f"{os.getuid()}",
                 environment={
                     "XDG_DATA_HOME": "/workspace/.local/share",
                     "TORCH_HOME": "/workspace/.cache/torch",
+                    "TMPDIR": "/ns_temp_data/torch_tmp",
+                    "TORCHINDUCTOR_CACHE_DIR": "/ns_temp_data/torch_inductor_cache",
+                    "TORCH_COMPILE_DISABLE": "1",
                 },
                 command="sleep infinity",
             )
@@ -179,9 +182,8 @@ _manager: Optional[DockerManager] = None
 
 
 def init(
-    output_base_path: str,
+    output_base_path: str = "./nerfstudio_output",
     image_name: str = "ghcr.io/nerfstudio-project/nerfstudio:latest",
-    shm_size: str = "12gb",
 ):
     """
     Initializes the Docker wrapper.
@@ -190,7 +192,7 @@ def init(
     global _manager
     if _manager is None:
         _manager = DockerManager(
-            output_base_path=output_base_path, image_name=image_name, shm_size=shm_size
+            output_base_path=output_base_path, image_name=image_name
         )
 
 
