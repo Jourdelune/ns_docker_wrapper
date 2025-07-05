@@ -8,17 +8,31 @@
 
 ## Getting Started
 
-Before running any Nerfstudio commands, you must initialize the Docker environment:
+Here is an example of how to use `ns_docker_wrapper` to run Nerfstudio commands:
 
 ```python
 import ns_docker_wrapper as nsdw
+from ns_docker_wrapper.utils import select_best_model
 
-# Initialize the Docker environment.
-# This will pull the Nerfstudio Docker image (if not already present),
-# start the container, and set up necessary volume mounts.
-# output_base_path: The local directory where Nerfstudio will store its outputs.
-#                   This directory is mounted to `/workspace` inside the Docker container.
-nsdw.init(output_base_path="./nerfstudio_output")
+RAW_IMAGES_INPUT_PATH = "YOUR_LOCAL_PATH_TO_RAW_IMAGES"  # Replace with your actual path
+
+nsdw.init()
+
+nsdw.process_images(
+    input_image_path=nsdw.path(RAW_IMAGES_INPUT_PATH),
+    output_dir="processed_data",
+).run()
+
+
+select_best_model()  # fix colmap sparse issue from nerfstudio https://github.com/nerfstudio-project/nerfstudio/issues/3435
+
+nsdw.train("splatfacto").data(
+    nsdw.path("./nerfstudio_output/processed_data")
+).viewer.quit_on_train_completion(True).output_dir(
+    "trained_models"
+).viewer_websocket_port(
+    7007
+).run()
 ```
 
 ## Handling Local Paths with `nsdw.path()`
