@@ -30,7 +30,7 @@ class ArgumentBuilder:
         return ArgumentBuilder(self._command, new_prefix)
 
     def __call__(
-        self, value: Optional[Union[str, int, float, bool, PathArgument]]
+        self, value: Optional[Union[str, int, float, bool, PathArgument]] = None
     ) -> Command:
         """
         Sets the value for the constructed argument.
@@ -56,9 +56,9 @@ class Command:
         self, key: str, value: Optional[Union[str, int, float, bool]]
     ) -> Command:
         """Adds a standard --key value argument."""
+
         self._command_args.append(f"--{key}")
         if value is not None:
-            # Nerfstudio expects string representations of booleans, so we don't need special handling.
             self._command_args.append(str(value))
         return self
 

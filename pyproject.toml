@@ -7,7 +7,7 @@ name = "ns_docker_wrapper"
 version = "0.1.0"
 description = "A Python wrapper for the Nerfstudio Docker image, inspired by ffmpeg-python."
 authors = [
-    { name = "Gemini", email = "gemini@google.com" },
+    { name = "jourdelune", email = "jourdelune863@gmail.com" }
 ]
 dependencies = [
     "docker",
