@@ -25,7 +25,7 @@ Here’s a simple end-to-end example showing how to process a set of images and 
 
 ```python
 import ns_docker_wrapper as nsdw
-from ns_docker_wrapper.utils import select_best_model
+from ns_docker_wrapper.utils import select_largest_model
 
 RAW_IMAGES_INPUT_PATH = "PATH_TO_YOUR_RAW_IMAGES"  # Replace this with your actual path
 OUTPUT_BASE_PATH = "./nerfstudio_output"
@@ -42,7 +42,7 @@ nsdw.process_data("images", nsdw.path(RAW_IMAGES_INPUT_PATH)).output_dir(
 nsdw.process_data("images", nsdw.path(RAW_IMAGES_INPUT_PATH)).output_dir(
     "processed_data"
 ).skip_image_processing().skip_colmap().colmap_model_path(
-    nsdw.path(str(select_best_model()))
+    nsdw.path(str(select_largest_model()))
 ).run()
 
 # Train a Nerfstudio model using the processed data

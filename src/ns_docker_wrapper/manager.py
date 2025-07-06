@@ -7,10 +7,18 @@ import tempfile
 from typing import Optional
 import logging
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+)
 
 
 class DockerManager:
+    """A singleton class to manage the Docker container for Nerfstudio.
+
+    This class handles the lifecycle of the Docker container, including pulling the
+    image, starting the container, executing commands, and cleaning up resources.
+    """
+
     _instance = None
 
     def __new__(cls, *args, **kwargs):
@@ -21,9 +29,17 @@ class DockerManager:
     def __init__(
         self,
         output_base_path: str,
-        image_name="ghcr.io/nerfstudio-project/nerfstudio:latest",
-        ipc="host",
+        image_name: str = "ghcr.io/nerfstudio-project/nerfstudio:latest",
+        ipc: str = "host",
     ):
+        """Initializes the DockerManager.
+
+        Args:
+            output_base_path (str): The base path for the output data.
+            image_name (str): The name of the Docker image to use.
+            ipc (str): The IPC mode to use for the container.
+        """
+
         os.makedirs(output_base_path, exist_ok=True)
 
         if hasattr(self, "_initialized") and self._initialized:
@@ -53,6 +69,8 @@ class DockerManager:
         atexit.register(self.cleanup)
 
     def _pull_image_if_needed(self):
+        """Pulls the Docker image if it is not already present."""
+
         try:
             self.client.images.get(self.image_name)
             logging.info(f"Image {self.image_name} found locally.")
@@ -62,6 +80,8 @@ class DockerManager:
             logging.info("Image pulled successfully.")
 
     def _start_container(self):
+        """Starts the Docker container."""
+
         volumes = {
             self.output_base_path: {"bind": "/workspace", "mode": "rw"},
             self.cache_path: {"bind": "/home/user/.cache", "mode": "rw"},
@@ -100,6 +120,8 @@ class DockerManager:
             sys.exit(1)
 
     def cleanup(self):
+        """Cleans up the resources used by the DockerManager."""
+
         logging.info("Cleaning up resources...")
         if self.container:
             logging.info(f"Stopping container {self.container.short_id}...")
@@ -109,9 +131,7 @@ class DockerManager:
             except docker.errors.NotFound:
                 logging.info("Container already stopped or removed.")
             except Exception as e:
-                logging.error(
-                    f"An error occurred while stopping the container: {e}"
-                )
+                logging.error(f"An error occurred while stopping the container: {e}")
             self.container = None
 
         self._temp_cache_dir.cleanup()
@@ -122,7 +142,15 @@ class DockerManager:
             f"Removed internal temporary data directory: {self._internal_temp_data_host_path.name}"
         )
 
-    def execute_command(self, command: list[str]):
+    def execute_command(self, command: list[str]) -> int:
+        """Executes a command in the Docker container.
+
+        Args:
+            command (list[str]): The command to execute as a list of strings.
+
+        Returns:
+            int: The exit code of the command.
+        """
         if not self.container:
             raise RuntimeError("Container is not running. Please call init() first.")
 
@@ -149,16 +177,18 @@ class DockerManager:
         exit_code = exec_result["ExitCode"]
 
         if exit_code != 0:
-            logging.error(
-                f"\nCommand execution failed with exit code {exit_code}"
-            )
+            logging.error(f"Command execution failed with exit code {exit_code}")
 
         return exit_code
 
     def copy_to_ns_temp_data(self, local_path: str) -> str:
-        """
-        Copies a local file or directory to the internal temporary data volume
-        and returns its corresponding path inside the Docker container.
+        """Copies a local file or directory to the internal temporary data volume.
+
+        Args:
+            local_path (str): The path to the local file or directory.
+
+        Returns:
+            str: The path of the file or directory inside the container.
         """
         abs_local_path = os.path.abspath(local_path)
 
@@ -187,9 +217,12 @@ def init(
     output_base_path: str = "./nerfstudio_output",
     image_name: str = "ghcr.io/nerfstudio-project/nerfstudio:main",
 ):
-    """
-    Initializes the Docker wrapper.
-    output_base_path: Local path where Nerfstudio will store its outputs (mounted to /workspace).
+    """Initializes the Docker wrapper.
+
+    Args:
+        output_base_path (str): Local path where Nerfstudio will store its outputs
+            (mounted to /workspace).
+        image_name (str): The name of the Docker image to use.
     """
     global _manager
     if _manager is None:
@@ -199,8 +232,19 @@ def init(
 
 
 def _get_manager() -> DockerManager:
+    """Returns the DockerManager instance.
+
+    Returns:
+        DockerManager: The DockerManager instance.
+
+    Raises:
+        RuntimeError: If the DockerManager has not been initialized.
+    """
     if _manager is None:
         raise RuntimeError(
             "You must call nsdw.init() before using any other functions."
         )
     return _manager
+
+
+""
