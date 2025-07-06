@@ -52,11 +52,6 @@ class DockerManager:
         self.ipc = ipc
         self._initialized = True
 
-        # Temporary directory for Docker cache (mounted to /home/user/.cache)
-        self._temp_cache_dir = tempfile.TemporaryDirectory()
-        self.cache_path = self._temp_cache_dir.name
-        logging.info(f"Created temporary cache directory: {self.cache_path}")
-
         # Temporary directory for internal data processing (mounted to /ns_temp_data)
         self._internal_temp_data_host_path = tempfile.TemporaryDirectory()
         self.internal_temp_data_container_path = "/ns_temp_data"
@@ -84,7 +79,6 @@ class DockerManager:
 
         volumes = {
             self.output_base_path: {"bind": "/workspace", "mode": "rw"},
-            self.cache_path: {"bind": "/home/user/.cache", "mode": "rw"},
             self._internal_temp_data_host_path.name: {
                 "bind": self.internal_temp_data_container_path,
                 "mode": "rw",
@@ -133,9 +127,6 @@ class DockerManager:
             except Exception as e:
                 logging.error(f"An error occurred while stopping the container: {e}")
             self.container = None
-
-        self._temp_cache_dir.cleanup()
-        logging.info(f"Removed temporary cache directory: {self.cache_path}")
 
         self._internal_temp_data_host_path.cleanup()
         logging.info(
