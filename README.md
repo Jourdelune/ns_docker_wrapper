@@ -27,7 +27,7 @@ pip install git+https://github.com/Jourdelune/ns_docker_wrapper.git
 
 The goal of `ns-docker-wrapper` is to streamline the process of running Nerfstudio commands in a Dockerized environment.
 
-In this way, you can use Nerfstudio without compiling it locally, but you can still use it in a Pythonic way to integrate it into your projects.
+In this way, you can use Nerfstudio without compiling it locally, but you can still use it in a Pythonic way to integrate it into your Python projects as a regular library.
 
 ## Documentation
 
