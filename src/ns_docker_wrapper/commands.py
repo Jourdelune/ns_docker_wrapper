@@ -115,13 +115,27 @@ class Command:
         self._command_args.append(value)
         return self
 
-    def run(self) -> int:
+    def run(self) -> Union[int, str]:
         """Builds and executes the final command in the container.
 
+        For the 'train' command, it returns the path to the config.yml file.
+        For all other commands, it returns the exit code.
+
         Returns:
-            int: The exit code of the command.
+            Union[int, str]: The exit code of the command or the path to the config file.
         """
-        return self._manager.execute_command(self._command_args)
+        exit_code, output = self._manager.execute_command(self._command_args)
+
+        # If it's a training command, parse the output to find the config file path
+        if self._command_args[0].startswith("ns-train"):
+            for line in output.splitlines():
+                if "Config File" in line:
+                    # Extract the path, which is the last part of the line
+                    path = line.split("│")[2].strip()
+                    return os.path.join(self._manager.output_base_path, path)
+            return exit_code  # Return exit code if path not found
+
+        return exit_code
 
     def __getattr__(self, name: str) -> ArgumentBuilder:
         """Dynamically creates methods for Nerfstudio arguments.
@@ -148,6 +162,9 @@ class Command:
 
 def train(method: str) -> Command:
     """Creates a 'ns-train' command.
+
+    When executed with .run(), this command returns the absolute path to the
+    training config.yml file.
 
     Args:
         method (str): The training method to use.

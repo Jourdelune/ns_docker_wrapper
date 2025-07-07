@@ -133,14 +133,14 @@ class DockerManager:
             f"Removed internal temporary data directory: {self._internal_temp_data_host_path.name}"
         )
 
-    def execute_command(self, command: list[str]) -> int:
+    def execute_command(self, command: list[str]) -> tuple[int, str]:
         """Executes a command in the Docker container.
 
         Args:
             command (list[str]): The command to execute as a list of strings.
 
         Returns:
-            int: The exit code of the command.
+            tuple[int, str]: A tuple containing the exit code and the command output.
         """
         if not self.container:
             raise RuntimeError("Container is not running. Please call init() first.")
@@ -160,9 +160,14 @@ class DockerManager:
 
         output_stream = self.client.api.exec_start(exec_id, stream=True, tty=True)
 
+        output_chunks = []
         for chunk in output_stream:
-            sys.stdout.write(chunk.decode("utf-8", errors="replace"))
+            decoded_chunk = chunk.decode("utf-8", errors="replace")
+            sys.stdout.write(decoded_chunk)
             sys.stdout.flush()
+            output_chunks.append(decoded_chunk)
+
+        output = "".join(output_chunks)
 
         exec_result = self.client.api.exec_inspect(exec_id)
         exit_code = exec_result["ExitCode"]
@@ -170,7 +175,7 @@ class DockerManager:
         if exit_code != 0:
             logging.error(f"Command execution failed with exit code {exit_code}")
 
-        return exit_code
+        return exit_code, output
 
     def copy_to_ns_temp_data(self, local_path: str) -> str:
         """Copies a local file or directory to the internal temporary data volume.
@@ -206,7 +211,7 @@ _manager: Optional[DockerManager] = None
 
 def init(
     output_base_path: str = "./nerfstudio_output",
-    image_name: str = "ghcr.io/nerfstudio-project/nerfstudio:main",
+    image_name: str = "jourdelune876/nerfstudio-full-dep:latest",
 ):
     """Initializes the Docker wrapper.
 
