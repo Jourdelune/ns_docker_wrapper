@@ -132,7 +132,8 @@ class Command:
                 if "Config File" in line:
                     # Extract the path, which is the last part of the line
                     path = line.split("│")[2].strip()
-                    return os.path.join(self._manager.output_base_path, path)
+                    # Return the path inside the container
+                    return os.path.join("/workspace", path)
             return exit_code  # Return exit code if path not found
 
         return exit_code
