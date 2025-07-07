@@ -6,6 +6,7 @@ import sys
 import tempfile
 from typing import Optional
 import logging
+import re
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
@@ -177,33 +178,110 @@ class DockerManager:
 
         return exit_code, output
 
-    def copy_to_ns_temp_data(self, local_path: str) -> str:
+    def copy_to_ns_temp_data(self, local_path: str, copy_depth: int = 0) -> str:
         """Copies a local file or directory to the internal temporary data volume.
 
         Args:
             local_path (str): The path to the local file or directory.
+            copy_depth (int): The number of parent directories to include in the copy.
 
         Returns:
             str: The path of the file or directory inside the container.
         """
         abs_local_path = os.path.abspath(local_path)
 
-        # Create a unique subdirectory in the temporary host path
-        unique_dir_name = os.path.basename(abs_local_path) + "_" + os.urandom(4).hex()
+        # Determine the effective source path based on copy_depth
+        src_path = abs_local_path
+        for i in range(copy_depth):
+            src_path = os.path.dirname(src_path)
+
         dest_host_path = os.path.join(
-            self._internal_temp_data_host_path.name, unique_dir_name
+            self._internal_temp_data_host_path.name, os.path.basename(src_path)
         )
 
-        if os.path.isdir(abs_local_path):
-            shutil.copytree(abs_local_path, dest_host_path)
-        elif os.path.isfile(abs_local_path):
-            os.makedirs(dest_host_path, exist_ok=True)  # Create dir for the file
-            shutil.copy(abs_local_path, dest_host_path)
+        logging.info(f"dest_host_path: {dest_host_path}")
+
+        # Calculate the relative path from src_path to abs_local_path
+        relative_path_in_copy = os.path.relpath(abs_local_path, src_path)
+
+        # Full path to the file/directory within the new unique directory
+        full_dest_path = os.path.join(dest_host_path, relative_path_in_copy)
+
+        if os.path.isdir(src_path):
+            shutil.copytree(src_path, dest_host_path, dirs_exist_ok=True)
+        elif os.path.isfile(src_path):
+            os.makedirs(os.path.dirname(full_dest_path), exist_ok=True)
+            shutil.copy(src_path, full_dest_path)
         else:
-            raise FileNotFoundError(f"Local path does not exist: {abs_local_path}")
+            raise FileNotFoundError(f"Local path does not exist: {src_path}")
+
+        # Calculate the relative path from src_path to abs_local_path
+        relative_path_in_copy = os.path.relpath(abs_local_path, src_path)
 
         # Return the path inside the container
-        return f"{self.internal_temp_data_container_path}/{unique_dir_name}/{os.path.basename(abs_local_path) if os.path.isfile(abs_local_path) else ''}"
+        return os.path.join(
+            self.internal_temp_data_container_path,
+            os.path.basename(src_path),
+            relative_path_in_copy,
+        )
+
+    def copy_to_workspace(self, local_path: str, copy_depth: int = 0) -> str:
+        """Copies a local file or directory to a unique subdirectory in the workspace.
+
+        Args:
+            local_path (str): The path to the local file or directory.
+            copy_depth (int): The number of parent directories to include in the copy.
+
+        Returns:
+            str: The path of the file or directory inside the container's workspace.
+        """
+        abs_local_path = os.path.abspath(local_path)
+
+        # Determine the effective source path based on copy_depth
+        src_root_path = abs_local_path  # This will be the root of what we copy
+        for _ in range(copy_depth):
+            src_root_path = os.path.dirname(src_root_path)
+
+        # Create a unique subdirectory in the host's output path
+        unique_dir_name = "processed_data_" + os.urandom(4).hex()
+        # The destination on the host will be within 'trained_models'
+        dest_host_root_path = os.path.join(
+            self.output_base_path, "trained_models", unique_dir_name
+        )
+        logging.info(f"dest_host_root_path: {dest_host_root_path}")
+
+        # Copy the entire src_root_path to dest_host_root_path
+        if os.path.isdir(src_root_path):
+            shutil.copytree(src_root_path, dest_host_root_path)
+        elif os.path.isfile(src_root_path):
+            # If src_root_path is a file, we need to create its parent directory
+            os.makedirs(os.path.dirname(dest_host_root_path), exist_ok=True)
+            shutil.copy(src_root_path, dest_host_root_path)
+        else:
+            raise FileNotFoundError(f"Local path does not exist: {src_root_path}")
+
+        # Calculate the relative path of the original local_path within the copied structure
+        relative_path_in_copied_structure = os.path.relpath(
+            abs_local_path, src_root_path
+        )
+        logging.info(
+            f"relative_path_in_copied_structure: {relative_path_in_copied_structure}"
+        )
+
+        # The full path to the specific file (e.g., config.yml) within the copied structure on the host
+        full_dest_file_path = os.path.join(
+            dest_host_root_path, relative_path_in_copied_structure
+        )
+        logging.info(f"full_dest_file_path: {full_dest_file_path}")
+
+        # Return the path inside the container, which should reflect the full path
+        # relative to /workspace, including the 'trained_models' and unique_dir_name
+        return os.path.join(
+            "/workspace",
+            "trained_models",
+            unique_dir_name,
+            relative_path_in_copied_structure,
+        )
 
 
 _manager: Optional[DockerManager] = None
@@ -241,6 +319,3 @@ def _get_manager() -> DockerManager:
             "You must call nsdw.init() before using any other functions."
         )
     return _manager
-
-
-""

@@ -5,3 +5,4 @@ RUN pip3 install git+https://github.com/KevinXu02/splatfacto-w
 
 RUN git clone --recursive https://github.com/cvg/Hierarchical-Localization/
 RUN cd Hierarchical-Localization/ && pip3 install -e .
+RUN ns-install-cli

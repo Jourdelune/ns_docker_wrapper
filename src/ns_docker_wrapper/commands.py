@@ -1,6 +1,8 @@
 from __future__ import annotations
+
 import os
-from typing import Optional, Union, List
+from typing import List, Optional, Union
+
 from .manager import _get_manager
 
 
@@ -12,10 +14,12 @@ class PathArgument:
 
     Args:
         local_path (str): The local path to the file or directory.
+        copy_depth (int): The depth to copy the directory structure.
     """
 
-    def __init__(self, local_path: str):
+    def __init__(self, local_path: str, copy_depth: int):
         self.local_path = local_path
+        self.copy_depth = copy_depth
 
 
 class ArgumentBuilder:
@@ -61,7 +65,7 @@ class ArgumentBuilder:
         """
         if isinstance(value, PathArgument):
             container_path = self._command._manager.copy_to_ns_temp_data(
-                value.local_path
+                value.local_path, value.copy_depth
             )
             return self._command._add_arg(self._prefix, container_path)
 
@@ -115,28 +119,15 @@ class Command:
         self._command_args.append(value)
         return self
 
-    def run(self) -> Union[int, str]:
-        """Builds and executes the final command in the container.
-
-        For the 'train' command, it returns the path to the config.yml file.
-        For all other commands, it returns the exit code.
+    def run(self) -> tuple[int, str]:
+        """
+        Executes the command and returns the exit code or output.
 
         Returns:
-            Union[int, str]: The exit code of the command or the path to the config file.
+            tuple[int, str]: The exit code or output of the command execution.
         """
-        exit_code, output = self._manager.execute_command(self._command_args)
 
-        # If it's a training command, parse the output to find the config file path
-        if self._command_args[0].startswith("ns-train"):
-            for line in output.splitlines():
-                if "Config File" in line:
-                    # Extract the path, which is the last part of the line
-                    path = line.split("│")[2].strip()
-                    # Return the path inside the container
-                    return os.path.join("/workspace", path)
-            return exit_code  # Return exit code if path not found
-
-        return exit_code
+        return self._manager.execute_command(self._command_args)
 
     def __getattr__(self, name: str) -> ArgumentBuilder:
         """Dynamically creates methods for Nerfstudio arguments.
@@ -237,7 +228,7 @@ def custom_command(command_string: str) -> Command:
     return Command(command_string)
 
 
-def path(local_path: str) -> PathArgument:
+def path(local_path: str, copy_depth: int = 1) -> PathArgument:
     """Wraps a local file system path.
 
     This indicates that it should be copied into the Docker container's internal
@@ -245,8 +236,9 @@ def path(local_path: str) -> PathArgument:
 
     Args:
         local_path (str): The local path to the file or directory.
+        copy_depth (int): The depth to copy the directory structure.
 
     Returns:
         PathArgument: A new PathArgument object.
     """
-    return PathArgument(local_path)
+    return PathArgument(local_path, copy_depth)
