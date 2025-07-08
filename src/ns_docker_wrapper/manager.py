@@ -99,7 +99,7 @@ class DockerManager:
                 ports={"7007/tcp": 7007},
                 ipc_mode=self.ipc,
                 remove=True,
-                user=f"{os.getuid()}",
+                user=f"{os.getuid()}" if hasattr(os, "getuid") else None,
                 environment={
                     "XDG_DATA_HOME": "/workspace/.local/share",
                     "TORCH_HOME": "/workspace/.cache/torch",
