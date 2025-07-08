@@ -85,7 +85,7 @@ for line in output.splitlines():
 
 
 nsdw.custom_command("ns-export").add_positional_arg("gaussian-splat").load_config(
-    config_file  # type: ignore # nsdw.path(config_file, copy_depth=5) if you want to copy the file fro the host to the container
+    config_file  # type: ignore # nsdw.path(config_file, copy_depth=5) if you want to copy the file from the host to the container
 ).output_dir("export").run()
 
 # now in ./nerfstudio_output/export you will find the exported model (splat.py)
