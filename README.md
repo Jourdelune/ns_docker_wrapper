@@ -38,35 +38,57 @@ A comprehensive documentation is available [here](https://jourdelune.github.io/n
 Here’s a simple end-to-end example showing how to process a set of images and train a Nerfstudio model:
 
 ```python
+import os
+
 import ns_docker_wrapper as nsdw
 from ns_docker_wrapper.utils import select_largest_model
 
 RAW_IMAGES_INPUT_PATH = "PATH_TO_YOUR_RAW_IMAGES"  # Replace this with your actual path
 OUTPUT_BASE_PATH = "./nerfstudio_output"
 
-# Initialize the ns_docker_wrapper with the base output path
 nsdw.init(output_base_path=OUTPUT_BASE_PATH)
 
-# Process the raw images and prepare the data for training
+
 nsdw.process_data("images", nsdw.path(RAW_IMAGES_INPUT_PATH)).output_dir(
     "processed_data"
 ).run()
 
 # fix colmap sparse issue from nerfstudio https://github.com/nerfstudio-project/nerfstudio/issues/3435
+
 nsdw.process_data("images", nsdw.path(RAW_IMAGES_INPUT_PATH)).output_dir(
     "processed_data"
 ).skip_image_processing().skip_colmap().colmap_model_path(
     nsdw.path(str(select_largest_model()))
 ).run()
 
-# Train a Nerfstudio model using the processed data
-nsdw.train("splatfacto").data(
-    nsdw.path("./nerfstudio_output/processed_data")
-).viewer.quit_on_train_completion(True).output_dir(
-    "trained_models"
-).viewer_websocket_port(
-    7007
-).run()
+
+exit_code, output = (
+    nsdw.train("splatfacto-big")
+    .data(nsdw.path("./nerfstudio_output/processed_data"))
+    .output_dir("trained_models")
+    .pipeline.model.use_scale_regularization(True)
+    .pipeline.model.use_bilateral_grid(True)
+    .viewer.quit_on_train_completion(True)
+    .pipeline.model.strategy("mcmc")
+    .pipeline.model.rasterize_mode("antialiased")
+    .pipeline.model.cull_alpha_thresh(0.005)
+    .run()
+)
+
+# extract the config file path from the output
+for line in output.splitlines():
+    if "Config File" in line:
+        path = line.split("│")[2].strip()
+        config_file = os.path.join("/workspace", path)
+
+        print(f"Config file generated: {config_file}")
+
+
+nsdw.custom_command("ns-export").add_positional_arg("gaussian-splat").load_config(
+    config_file  # type: ignore # nsdw.path(config_file, copy_depth=5) if you want to copy the file fro the host to the container
+).output_dir("export").run()
+
+# now in ./nerfstudio_output/export you will find the exported model (splat.py)
 ```
 
 ## Available Commands
