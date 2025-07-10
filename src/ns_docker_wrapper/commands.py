@@ -27,29 +27,32 @@ class ArgumentBuilder:
 
     Args:
         command (Command): The command to build arguments for.
-        prefix (str): The current prefix for the argument.
+        original_name (str): The original snake_case name of the argument.
+        formatted_name (str): The formatted (kebab-case) name of the argument.
     """
 
-    def __init__(self, command: Command, prefix: str):
+    def __init__(self, command: Command, original_name: str, formatted_name: str):
         self._command = command
-        self._prefix = prefix
+        self._original_name = original_name
+        self._formatted_name = formatted_name
 
     def __getattr__(self, name: str) -> ArgumentBuilder:
         """Chains attributes to build the argument name.
-
-        Converts snake_case to kebab-case for the argument name.
 
         Args:
             name (str): The name of the attribute.
 
         Returns:
-            ArgumentBuilder: A new ArgumentBuilder with the updated prefix.
+            ArgumentBuilder: A new ArgumentBuilder with the updated names.
         """
-        new_prefix = f"{self._prefix}.{name.replace('_', '-')}"
-        return ArgumentBuilder(self._command, new_prefix)
+        new_original_name = f"{self._original_name}.{name}"
+        new_formatted_name = f"{self._formatted_name}.{name.replace('_', '-')}"
+        return ArgumentBuilder(self._command, new_original_name, new_formatted_name)
 
     def __call__(
-        self, value: Optional[Union[str, int, float, bool, PathArgument]] = None
+        self,
+        value: Optional[Union[str, int, float, bool, PathArgument]] = None,
+        keep_underscore: bool = False,
     ) -> Command:
         """Sets the value for the constructed argument.
 
@@ -59,6 +62,8 @@ class ArgumentBuilder:
         Args:
             value (Optional[Union[str, int, float, bool, PathArgument]]): The value
                 to set for the argument.
+            keep_underscore (bool): If True, the argument name will retain underscores
+                                    instead of being converted to hyphens.
 
         Returns:
             Command: The command with the new argument.
@@ -67,9 +72,11 @@ class ArgumentBuilder:
             container_path = self._command._manager.copy_to_ns_temp_data(
                 value.local_path, value.copy_depth
             )
-            return self._command._add_arg(self._prefix, container_path)
+            return self._command._add_arg(
+                self._original_name, container_path, keep_underscore
+            )
 
-        return self._command._add_arg(self._prefix, value)
+        return self._command._add_arg(self._original_name, value, keep_underscore)
 
 
 class Command:
@@ -85,7 +92,7 @@ class Command:
         self._command_args: List[str] = [base_command]
 
     def _add_arg(
-        self, key: str, value: Optional[Union[str, int, float, bool]]
+        self, key: str, value: Optional[Union[str, int, float, bool]], keep_underscore: bool = False
     ) -> Command:
         """Adds a standard --key value argument.
 
@@ -93,11 +100,14 @@ class Command:
             key (str): The name of the argument.
             value (Optional[Union[str, int, float, bool]]): The value of the
                 argument.
+            keep_underscore (bool): If True, the argument name will retain underscores
+                                    instead of being converted to hyphens.
 
         Returns:
             Command: The command with the new argument.
         """
-        self._command_args.append(f"--{key}")
+        arg_name = key if keep_underscore else key.replace('_', '-')
+        self._command_args.append(f"--{arg_name}")
         if value is not None:
             self._command_args.append(str(value))
         return self
@@ -141,12 +151,13 @@ class Command:
         Returns:
             ArgumentBuilder: An ArgumentBuilder for the new argument.
         """
-        # Convert snake_case to kebab-case or dot.case for the argument name
+        # Determine the original and formatted names
+        original_name = name
         if name.startswith("viewer_"):
-            key = "viewer." + name.split("_", 1)[1].replace("_", "-")
+            formatted_name = "viewer." + name.split("_", 1)[1].replace("_", "-")
         else:
-            key = name.replace("_", "-")
-        return ArgumentBuilder(self, key)
+            formatted_name = name.replace("_", "-")
+        return ArgumentBuilder(self, original_name, formatted_name)
 
 
 # --- Command Factory Functions ---
