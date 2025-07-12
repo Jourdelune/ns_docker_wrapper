@@ -54,7 +54,11 @@ class DockerManager:
         self._initialized = True
 
         # Temporary directory for internal data processing (mounted to /ns_temp_data)
-        self._internal_temp_data_host_path = tempfile.TemporaryDirectory()
+        temp_dir_base = os.path.join(self.output_base_path, ".tmp")
+        os.makedirs(temp_dir_base, exist_ok=True)
+        self._internal_temp_data_host_path = tempfile.TemporaryDirectory(
+            dir=temp_dir_base
+        )
         self.internal_temp_data_container_path = "/ns_temp_data"
         logging.info(
             f"Created internal temporary data directory: {self._internal_temp_data_host_path.name}"
@@ -208,7 +212,12 @@ class DockerManager:
         full_dest_path = os.path.join(dest_host_path, relative_path_in_copy)
 
         if os.path.isdir(src_path):
-            shutil.copytree(src_path, dest_host_path, dirs_exist_ok=True)
+            shutil.copytree(
+                src_path,
+                dest_host_path,
+                dirs_exist_ok=True,
+                ignore=shutil.ignore_patterns("*.tmp"),
+            )
         elif os.path.isfile(src_path):
             os.makedirs(os.path.dirname(full_dest_path), exist_ok=True)
             shutil.copy(src_path, full_dest_path)
@@ -223,64 +232,6 @@ class DockerManager:
             self.internal_temp_data_container_path,
             os.path.basename(src_path),
             relative_path_in_copy,
-        )
-
-    def copy_to_workspace(self, local_path: str, copy_depth: int = 0) -> str:
-        """Copies a local file or directory to a unique subdirectory in the workspace.
-
-        Args:
-            local_path (str): The path to the local file or directory.
-            copy_depth (int): The number of parent directories to include in the copy.
-
-        Returns:
-            str: The path of the file or directory inside the container's workspace.
-        """
-        abs_local_path = os.path.abspath(local_path)
-
-        # Determine the effective source path based on copy_depth
-        src_root_path = abs_local_path  # This will be the root of what we copy
-        for _ in range(copy_depth):
-            src_root_path = os.path.dirname(src_root_path)
-
-        # Create a unique subdirectory in the host's output path
-        unique_dir_name = "processed_data_" + os.urandom(4).hex()
-        # The destination on the host will be within 'trained_models'
-        dest_host_root_path = os.path.join(
-            self.output_base_path, "trained_models", unique_dir_name
-        )
-        logging.info(f"dest_host_root_path: {dest_host_root_path}")
-
-        # Copy the entire src_root_path to dest_host_root_path
-        if os.path.isdir(src_root_path):
-            shutil.copytree(src_root_path, dest_host_root_path)
-        elif os.path.isfile(src_root_path):
-            # If src_root_path is a file, we need to create its parent directory
-            os.makedirs(os.path.dirname(dest_host_root_path), exist_ok=True)
-            shutil.copy(src_root_path, dest_host_root_path)
-        else:
-            raise FileNotFoundError(f"Local path does not exist: {src_root_path}")
-
-        # Calculate the relative path of the original local_path within the copied structure
-        relative_path_in_copied_structure = os.path.relpath(
-            abs_local_path, src_root_path
-        )
-        logging.info(
-            f"relative_path_in_copied_structure: {relative_path_in_copied_structure}"
-        )
-
-        # The full path to the specific file (e.g., config.yml) within the copied structure on the host
-        full_dest_file_path = os.path.join(
-            dest_host_root_path, relative_path_in_copied_structure
-        )
-        logging.info(f"full_dest_file_path: {full_dest_file_path}")
-
-        # Return the path inside the container, which should reflect the full path
-        # relative to /workspace, including the 'trained_models' and unique_dir_name
-        return os.path.join(
-            "/workspace",
-            "trained_models",
-            unique_dir_name,
-            relative_path_in_copied_structure,
         )
 
 
