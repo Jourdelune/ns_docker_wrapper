@@ -199,17 +199,17 @@ class DockerManager:
         for i in range(copy_depth):
             src_path = os.path.dirname(src_path)
 
+        # If path is already in the main output volume, just calculate container path
+        if src_path.startswith(self.output_base_path):
+            return os.path.join(
+                "/workspace", os.path.relpath(abs_local_path, self.output_base_path)
+            )
+
+        # Otherwise, copy to temp volume and return container path
+        base_name = os.path.basename(src_path)
         dest_host_path = os.path.join(
-            self._internal_temp_data_host_path.name, os.path.basename(src_path)
+            self._internal_temp_data_host_path.name, base_name
         )
-
-        logging.info(f"dest_host_path: {dest_host_path}")
-
-        # Calculate the relative path from src_path to abs_local_path
-        relative_path_in_copy = os.path.relpath(abs_local_path, src_path)
-
-        # Full path to the file/directory within the new unique directory
-        full_dest_path = os.path.join(dest_host_path, relative_path_in_copy)
 
         if os.path.isdir(src_path):
             shutil.copytree(
@@ -219,20 +219,13 @@ class DockerManager:
                 ignore=shutil.ignore_patterns("*.tmp"),
             )
         elif os.path.isfile(src_path):
-            os.makedirs(os.path.dirname(full_dest_path), exist_ok=True)
-            shutil.copy(src_path, full_dest_path)
+            os.makedirs(os.path.dirname(dest_host_path), exist_ok=True)
+            shutil.copy(src_path, dest_host_path)
         else:
-            raise FileNotFoundError(f"Local path does not exist: {src_path}")
+            # If path doesn't exist, return it as is, assuming it's not a path
+            return local_path
 
-        # Calculate the relative path from src_path to abs_local_path
-        relative_path_in_copy = os.path.relpath(abs_local_path, src_path)
-
-        # Return the path inside the container
-        return os.path.join(
-            self.internal_temp_data_container_path,
-            os.path.basename(src_path),
-            relative_path_in_copy,
-        )
+        return os.path.join(self.internal_temp_data_container_path, base_name)
 
 
 _manager: Optional[DockerManager] = None
