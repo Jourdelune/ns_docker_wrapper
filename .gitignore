@@ -169,3 +169,4 @@ uv.lock
 src/ns_docker_wrapper/py.typed
 nerfstudio_output
 test*.py
+examples/

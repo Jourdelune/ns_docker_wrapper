@@ -56,8 +56,7 @@ class ArgumentBuilder:
     ) -> Command:
         """Sets the value for the constructed argument.
 
-        If the value is a PathArgument, it will be copied to the internal Docker
-        volume.
+        If the value is a PathArgument, it will be copied to an internal temporary volume.
 
         Args:
             value (Optional[Union[str, int, float, bool, PathArgument]]): The value
@@ -116,9 +115,9 @@ class Command:
         """Adds a positional argument.
 
         Note:
-            Positional arguments are not automatically copied to the internal volume.
+            Positional arguments are not automatically copied to the internal temporary volume.
             If a positional argument is a path, it must be relative to the
-            output_base_path (mounted at /workspace).
+            output_base_path (which corresponds to /workspace in Docker mode).
 
         Args:
             value (str): The value of the positional argument.
@@ -184,7 +183,8 @@ def process_data(processor: str, data_path: Union[str, PathArgument]) -> Command
     Args:
         processor (str): The processor to use.
         data_path (Union[str, PathArgument]): The path to the data. Can be a local
-            path wrapped with nsdw.path() or a path relative to output_base_path.
+            path wrapped with nsdw.path() or a path relative to output_base_path
+            (which corresponds to /workspace in Docker mode).
 
     Returns:
         Command: A new Command object for the process-data command.
@@ -193,7 +193,9 @@ def process_data(processor: str, data_path: Union[str, PathArgument]) -> Command
 
     # Handle data_path argument based on its type
     if isinstance(data_path, PathArgument):
-        container_path = cmd._manager.copy_to_ns_temp_data(data_path.local_path)
+        container_path = cmd._manager.copy_to_ns_temp_data(
+            data_path.local_path, data_path.copy_depth
+        )
         cmd._add_arg("data", container_path)
     else:
         # Assume it's a path relative to /workspace
@@ -209,7 +211,7 @@ def process_images(
     Args:
         input_image_path (Union[str, PathArgument]): The path to the input images.
             Can be a local path wrapped with nsdw.path() or a path relative to
-            output_base_path.
+            output_base_path (which corresponds to /workspace in Docker mode).
         output_dir (str): The path to the output directory, relative to
             output_base_path.
 
@@ -218,7 +220,9 @@ def process_images(
     """
     cmd = Command("ns-process-data images")
     if isinstance(input_image_path, PathArgument):
-        container_path = cmd._manager.copy_to_ns_temp_data(input_image_path.local_path)
+        container_path = cmd._manager.copy_to_ns_temp_data(
+            input_image_path.local_path, input_image_path.copy_depth
+        )
         cmd._add_arg("data", container_path)
     else:
         cmd._add_arg("data", input_image_path)
@@ -239,11 +243,12 @@ def custom_command(command_string: str) -> Command:
     return Command(command_string)
 
 
-def path(local_path: str, copy_depth: int = 1) -> PathArgument:
+def path(local_path: str, copy_depth: int = 0) -> PathArgument:
     """Wraps a local file system path.
 
-    This indicates that it should be copied into the Docker container's internal
-    temporary volume before being used by Nerfstudio.
+    This indicates that it should be copied into an internal temporary volume
+    before being used by Nerfstudio. This is useful for data that is not
+    already in the output_base_path.
 
     Args:
         local_path (str): The local path to the file or directory.
