@@ -1,13 +1,13 @@
 import atexit
+import logging
 import os
 import shutil
+import subprocess
 import sys
 import tempfile
 from typing import Optional
-import logging
-import re
-import subprocess
 
+import docker
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
@@ -64,27 +64,18 @@ class DockerManager:
 
         if self.use_docker:
             try:
-                import docker
-                self.docker = docker
-                self.client = self.docker.from_env()
-            except ImportError:
-                raise ImportError(
-                    "The 'docker' package is required to run with a Docker image. Please install it with 'pip install docker'"
+                self.client = docker.from_env()
+            except docker.errors.DockerException:
+                raise Exception(
+                    "Docker is not available. Please start Docker and try again."
                 )
-            except Exception as e:
-                if "No such file or directory" in str(e):
-                    logging.error(
-                        "Docker is not available. Please start Docker and try again."
-                    )
-                    sys.exit(1)
-                raise e
+
             self.workspace_path = "/workspace"
             self.internal_temp_data_container_path = "/ns_temp_data"
             self._pull_image_if_needed()
             self._start_container()
         else:
             logging.info("Running in local mode (no Docker).")
-            self.docker = None
             self.client = None
             self.workspace_path = self.output_base_path
             self.internal_temp_data_container_path = (
@@ -99,7 +90,7 @@ class DockerManager:
         try:
             self.client.images.get(self.image_name)
             logging.info(f"Image {self.image_name} found locally.")
-        except self.docker.errors.ImageNotFound:
+        except docker.errors.ImageNotFound:
             logging.info(f"Image {self.image_name} not found. Pulling from registry...")
             self.client.images.pull(self.image_name)
             logging.info("Image pulled successfully.")
@@ -115,13 +106,11 @@ class DockerManager:
             },
         }
 
-        device_requests = [
-            self.docker.types.DeviceRequest(count=-1, capabilities=[["gpu"]])
-        ]
+        device_requests = [docker.types.DeviceRequest(count=-1, capabilities=[["gpu"]])]
 
         try:
-            self.container = self.client.containers.run(
-                self.image_name,
+            self.container = self.client.containers.run(  # type: ignore : idk why mypy complains
+                self.image_name,  # type: ignore # only if use_docker is True
                 detach=True,
                 tty=True,
                 stdin_open=True,
@@ -154,7 +143,7 @@ class DockerManager:
             try:
                 self.container.stop()
                 logging.info("Container stopped.")
-            except self.docker.errors.NotFound:
+            except docker.errors.NotFound:
                 logging.info("Container already stopped or removed.")
             except Exception as e:
                 logging.error(f"An error occurred while stopping the container: {e}")
