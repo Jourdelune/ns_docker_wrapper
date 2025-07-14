@@ -191,6 +191,14 @@ This ensures the file or directory is made accessible inside the container:
 nsdw.train("nerfacto").data(nsdw.path("./datasets/my_scene")).run()
 ```
 
+### Avoid docker
+
+If you want to avoid using Docker, you can set the `image_name` parameter to `None` when initializing:
+
+```python
+nsdw.init(output_base_path="./nerfstudio_output", image_name=None)
+```
+This will run the commands directly on your local machine without using Docker.
 
 ## License
 
