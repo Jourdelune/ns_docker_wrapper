@@ -16,6 +16,15 @@ RUN git clone --recursive https://github.com/cvg/Hierarchical-Localization && \
 # Download vocab tree
 RUN wget https://demuc.de/colmap/vocab_tree_flickr100K_words32K.bin -O /opt/vocab_tree_flickr100K_words32K.bin
 
+RUN pip3 uninstall nerfstudio -y
+
+RUN echo "downloading latest custom nerfstudio" && git clone https://github.com/Jourdelune/nerfstudio.git && \
+    cd nerfstudio && \
+    pip3 install --upgrade pip setuptools && \
+    pip3 install .
+
+RUN ns-install-cli --mode install
+
 # Copy and install the local ns_docker_wrapper
 COPY ./src /opt/ns_docker_wrapper/src
 COPY pyproject.toml /opt/ns_docker_wrapper/
